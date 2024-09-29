@@ -1,1 +1,3 @@
-# p8105_hw2_ss6985
+# Homework 2 
+
+This repo has code from Homework 2 in P8105. 
