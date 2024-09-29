@@ -58,6 +58,34 @@ no_vending
 ```
 There are 183 station entrances/exits without vending. **69/183 or 37.70%** of station entrances/exits without vending allow entrance. 
 
+### Reformatting Data: 
+```{r}
+subway_long_df = 
+  subway_df |>
+  gather(key = route_number, value = route_name, route1:route11) |>
+  separate(route_number, into = c("route_str", "route_number"), sep = 5) |>
+  select(-route_str)
+
+distinct_a_train_stations = subway_long_df |>
+  filter(route_name == "A") |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+distinct_a_train_stations
+```
+**60** distinct stations serve the A train. 
+
+```{r}
+ada_compliant_a_train_stations = subway_long_df |>
+  filter(route_name == "A", ada == TRUE) |> 
+  distinct(line, station_name) |> 
+  nrow()
+
+ada_compliant_a_train_stations
+```
+**17** of the stations that serve the A train are ADA compliant. 
+
+
 ## Problem 2
 
 
