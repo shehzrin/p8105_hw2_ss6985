@@ -5,6 +5,7 @@ output: github_document
 
 ```{r setup, echo = FALSE, message = FALSE}
 library(tidyverse)
+library(readxl)
 ```
 
 ## Problem 1 
@@ -87,6 +88,77 @@ ada_compliant_a_train_stations
 
 
 ## Problem 2
+
+Read and clean the Mr. Trash Wheel sheet: 
+```{r}
+mr_trashwheel_df = 
+  read_excel("202309 Trash Wheel Collection Data.xlsx", 
+             na = c("NA",".",""), 
+             sheet = "Mr. Trash Wheel", 
+             range = "A2:N586", 
+             col_names = TRUE) |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(
+    sports_balls = as.integer(round(sports_balls)), 
+    year = as.integer(year),
+    trash_wheel = "Mr. Trash Wheel"
+    )
+```
+
+Read and clean the Professor Trash Wheel sheet & the Gwynnda Trash Wheel sheet:
+```{r}
+professor_trashwheel_df = 
+  read_excel("202309 Trash Wheel Collection Data.xlsx", 
+             na = c("NA",".",""), 
+             sheet = "Professor Trash Wheel", 
+             range = "A2:M108", 
+             col_names = TRUE) |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(
+    year = as.integer(year),
+    trash_wheel = "Professor Trash Wheel"
+    )
+
+gwynnda_trashwheel_df = 
+  read_excel("202309 Trash Wheel Collection Data.xlsx", 
+             na = c("NA",".",""), 
+             sheet = "Gwynnda Trash Wheel", 
+             range = "A2:L157", 
+             col_names = TRUE) |>
+  janitor::clean_names() |>
+  filter(!is.na(dumpster)) |>
+  mutate(
+    year = as.integer(year),
+    trash_wheel = "Gwynnda Trash Wheel"
+    )
+```
+
+Combining datasets:
+```{r}
+trashwheel_df = 
+  bind_rows(mr_trashwheel_df, professor_trashwheel_df, gwynnda_trashwheel_df) |>
+  janitor::clean_names() 
+```
+
+### About Combined Data: 
+I imported 3 datasets that each provided information on a single vessel (Mr.Trash Wheel, Professor Trash Wheel, or Gwynnda Trash Wheel) that removes trash. The **variables** included for each vessel/dataset were dumpster number, month, year, date, weight (tons), volume (cubic yards), plastic bottles, polystyrene, cigarette buds, glass bottles (not included in Gwynnda Trash Wheel dataset), plastic bags, wrappers, sports balls (not included in Professor Trash Wheel dataset or Gwynnda Trash Wheel dataset) and homes powered. After cleaning, organizing, and combining the data, the combined dataset contains information from the three vessels (Mr. Trash Wheel, Professor Trash Wheel, and Gwynnda) with a total of **`r nrow(trashwheel_df)` observations**. The resulting dataset has **`r nrow(trashwheel_df)` rows** and **`r ncol(trashwheel_df)` columns**. Each observation represents a specific dumpster collection event, with key variables including the weight of trash collected (in tons), the number of plastic bottles collected, or the number of cigarette butts removed from the water. 
+```{r, echo = FALSE, message = FALSE}
+professor_weight_sum = 
+  sum(
+    with(trashwheel_df, 
+         weight_tons[trash_wheel == "Professor Trash Wheel"]), 
+    na.rm = TRUE
+    )
+gwynnda_cig_butts_june = 
+  sum(
+    with(trashwheel_df, 
+         cigarette_butts[trash_wheel == "Gwynnda Trash Wheel" & year == 2022 & month == "June"]), 
+    na.rm = TRUE
+    )
+```
+Professor Trash Wheel collected a total of **`r professor_weight_sum` tons of trash**. In June 2022, Gwynnda removed **`r gwynnda_cig_butts_june` cigarette butts from the water**.
 
 
 ## Problem 3
