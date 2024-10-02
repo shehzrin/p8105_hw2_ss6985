@@ -1,11 +1,14 @@
 ---
 title: "P8105 Homework 2"
+author: "Shehzrin Shah"
+date: "2024-09-28"
 output: github_document
 ---
 
 ```{r setup, echo = FALSE, message = FALSE}
 library(tidyverse)
 library(readxl)
+library(dplyr)
 ```
 
 ## Problem 1 
@@ -26,65 +29,73 @@ subway_df =
 ```
 
 ### Description of Dataset: 
-The NYC Transit Subway dataset contains information about subway station entrances and exits in New York City. The data has been **imported** and the column names have been **cleaned** to be in a common standard format (e.g., through underscores for spaces/lowercase consistency). I **handled missing values** by converting "NA", ".", and empty strings to NA. I **selected** specific columns/variables that are relevant for further analysis, including the variables **line** (subway line), **station_name** (name of the station), **station_latitude** and **station_longitude** (geographic coordinates of the station), **routes served** (up to 11 routes per station), entrance_type (type of entrance, e.g., stair, elevator, etc.), **entry** (whether the entrance allows entry), **vending** (whether there are vending machines at the entrance), and **ada** (whether the station is ADA compliant). The entry variable was converted from a character ("YES"/"NO") to a logical variable (TRUE for "YES", FALSE for "NO"). The resulting dataset has **`r nrow(subway_df)` rows** and **`r ncol(subway_df)` columns**. The data is **not tidy**, considering there are several columns for each route number, for a total of 11 routes/columns for routes served.
+The NYC Transit Subway dataset contains information about subway station entrances and exits in New York City. The data has been **imported** and the column names have been **cleaned** to be in a common standard format (e.g., through underscores for spaces/lowercase consistency). I **handled missing values** by converting "NA", ".", and empty strings to NA. I **selected** specific columns/variables that are relevant for further analysis, including the variables `line` (subway line), `station_name` (name of the station), `station_latitude` and `station_longitude` (geographic coordinates of the station), routes served (up to 11 routes per station), `entrance_type` (type of entrance, e.g., stair, elevator, etc.), `entry` (whether the entrance allows entry), `vending` (whether there is vending), and `ada` (whether the station is ADA compliant). The `entry` variable was converted from a character ("YES"/"NO") to a logical variable (TRUE for "YES", FALSE for "NO"). The resulting dataset has **`r nrow(subway_df)` rows** and **`r ncol(subway_df)` columns**. The data is **not tidy**, considering there are several columns for each route number, for a total of 11 routes/columns for routes served.
 
 ### Questions About Data:
+```{r}
+distinct_stations = 
+  subway_df |>
+  distinct(line, station_name) |>
+  nrow()
+```
+
 There are **`r nrow(distinct(subway_df, line, station_name))`** distinct stations. 
 
 ```{r }
 ada_compliant_stations = subway_df |>
   filter(ada == TRUE) |> 
   distinct(line, station_name) |> 
-  nrow()
-
-ada_compliant_stations
+  nrow() |>
+  print()
 ```
-There are **84** stations that are ADA compliant. 
+There are **`r ada_compliant_stations`** stations that are ADA compliant. 
 
 ```{r}
 no_vending_entry = subway_df |>
   filter(vending == "NO", entry == TRUE) |>
-  nrow()
-
-no_vending_entry
+  nrow() |>
+  print()
 ```
-There are 69 station entrances/exits without vending that allow entrance.  
+There are `r no_vending_entry` station entrances/exits without vending that allow entrance.  
 
 ```{r}
 no_vending = subway_df |>
   filter(vending == "NO")|>
-  nrow()
-
-no_vending
+  nrow() |>
+  print()
 ```
-There are 183 station entrances/exits without vending. **69/183 or 37.70%** of station entrances/exits without vending allow entrance. 
+There are `r nrow(subway_df)` station entrances/exits without vending. **69/183 or 37.70%** of station entrances/exits without vending allow entrance. 
 
 ### Reformatting Data: 
 ```{r}
 subway_long_df = 
   subway_df |>
-  gather(key = route_number, value = route_name, route1:route11) |>
-  separate(route_number, into = c("route_str", "route_number"), sep = 5) |>
-  select(-route_str)
+  mutate(
+    across(
+      starts_with("route"), as.character)
+    )|> 
+  pivot_longer(
+    cols = starts_with("route"), 
+    names_to = "route_number", 
+    values_to = "route_name",
+    values_drop_na = TRUE
+    ) 
 
 distinct_a_train_stations = subway_long_df |>
   filter(route_name == "A") |> 
   distinct(line, station_name) |> 
-  nrow()
-
-distinct_a_train_stations
+  nrow() |>
+  print()
 ```
-**60** distinct stations serve the A train. 
-
+**`r distinct_a_train_stations`** distinct stations serve the A train. 
 ```{r}
 ada_compliant_a_train_stations = subway_long_df |>
   filter(route_name == "A", ada == TRUE) |> 
   distinct(line, station_name) |> 
-  nrow()
-
-ada_compliant_a_train_stations
+  nrow() |>
+  print()
 ```
-**17** of the stations that serve the A train are ADA compliant. 
+**`r ada_compliant_a_train_stations`** of the stations that serve the A train are ADA compliant. 
 
 
 ## Problem 2
@@ -92,46 +103,44 @@ ada_compliant_a_train_stations
 Read and clean the Mr. Trash Wheel sheet: 
 ```{r}
 mr_trashwheel_df = 
-  read_excel("202309 Trash Wheel Collection Data.xlsx", 
+  read_excel("202409 Trash Wheel Collection Data.xlsx", 
              na = c("NA",".",""), 
              sheet = "Mr. Trash Wheel", 
-             range = "A2:N586", 
-             col_names = TRUE) |>
+             range = "A2:N653"
+             ) |>
   janitor::clean_names() |>
-  filter(!is.na(dumpster)) |>
   mutate(
-    sports_balls = as.integer(round(sports_balls)), 
+    sports_balls = as.integer(round(sports_balls)),
     year = as.integer(year),
-    trash_wheel = "Mr. Trash Wheel"
-    )
+    trash_wheel = "mr. trash wheel"
+    ) |>
+  relocate(trash_wheel, dumpster)
 ```
 
 Read and clean the Professor Trash Wheel sheet & the Gwynnda Trash Wheel sheet:
 ```{r}
 professor_trashwheel_df = 
-  read_excel("202309 Trash Wheel Collection Data.xlsx", 
+  read_excel("202409 Trash Wheel Collection Data.xlsx", 
              na = c("NA",".",""), 
              sheet = "Professor Trash Wheel", 
-             range = "A2:M108", 
-             col_names = TRUE) |>
+             range = "A2:M120", 
+             ) |>
   janitor::clean_names() |>
-  filter(!is.na(dumpster)) |>
   mutate(
-    year = as.integer(year),
-    trash_wheel = "Professor Trash Wheel"
+    trash_wheel = "professor trash wheel",
+    year = as.integer(year)
     )
 
 gwynnda_trashwheel_df = 
-  read_excel("202309 Trash Wheel Collection Data.xlsx", 
+  read_excel("202409 Trash Wheel Collection Data.xlsx", 
              na = c("NA",".",""), 
              sheet = "Gwynnda Trash Wheel", 
-             range = "A2:L157", 
-             col_names = TRUE) |>
+             range = "A2:L265", 
+             ) |>
   janitor::clean_names() |>
-  filter(!is.na(dumpster)) |>
   mutate(
-    year = as.integer(year),
-    trash_wheel = "Gwynnda Trash Wheel"
+    trash_wheel = "gwynnda trash wheel",
+    year = as.integer(year)
     )
 ```
 
@@ -139,28 +148,143 @@ Combining datasets:
 ```{r}
 trashwheel_df = 
   bind_rows(mr_trashwheel_df, professor_trashwheel_df, gwynnda_trashwheel_df) |>
-  janitor::clean_names() 
+  janitor::clean_names() |>
+  relocate(trash_wheel, dumpster) |>
+  select(trash_wheel:homes_powered)
 ```
 
 ### About Combined Data: 
-I imported 3 datasets that each provided information on a single vessel (Mr.Trash Wheel, Professor Trash Wheel, or Gwynnda Trash Wheel) that removes trash. The **variables** included for each vessel/dataset were dumpster number, month, year, date, weight (tons), volume (cubic yards), plastic bottles, polystyrene, cigarette buds, glass bottles (not included in Gwynnda Trash Wheel dataset), plastic bags, wrappers, sports balls (not included in Professor Trash Wheel dataset or Gwynnda Trash Wheel dataset) and homes powered. After cleaning, organizing, and combining the data, the combined dataset contains information from the three vessels (Mr. Trash Wheel, Professor Trash Wheel, and Gwynnda) with a total of **`r nrow(trashwheel_df)` observations**. The resulting dataset has **`r nrow(trashwheel_df)` rows** and **`r ncol(trashwheel_df)` columns**. Each observation represents a specific dumpster collection event, with key variables including the weight of trash collected (in tons), the number of plastic bottles collected, or the number of cigarette butts removed from the water. 
-```{r, echo = FALSE, message = FALSE}
-professor_weight_sum = 
-  sum(
-    with(trashwheel_df, 
-         weight_tons[trash_wheel == "Professor Trash Wheel"]), 
-    na.rm = TRUE
-    )
-gwynnda_cig_butts_june = 
-  sum(
-    with(trashwheel_df, 
-         cigarette_butts[trash_wheel == "Gwynnda Trash Wheel" & year == 2022 & month == "June"]), 
-    na.rm = TRUE
-    )
-```
-Professor Trash Wheel collected a total of **`r professor_weight_sum` tons of trash**. In June 2022, Gwynnda removed **`r gwynnda_cig_butts_june` cigarette butts from the water**.
+I imported 3 datasets that each provided information on a single vessel (Mr.Trash Wheel, Professor Trash Wheel, or Gwynnda Trash Wheel) that removes trash. Each observation still represents a specific dumpster collection event. The **variables** included for each observation were `dumpster` number, `month`, `year`, `date`, `weight` (weight of trash collected in tons), `volume` (volume of trash collected in cubic yards), `plastic bottles` (remainder of variables note the number of the respective object found in the trash collected by the vessel during the single collection event), `polystyrene`, `cigarette buds`, `glass bottles` (not included in Gwynnda Trash Wheel dataset), `plastic bags`, `wrappers`, `sports balls` (not included in Professor Trash Wheel dataset or Gwynnda Trash Wheel dataset) and `homes powered`. After cleaning, organizing, and combining the data, the combined dataset (`trashwheel_df`) contains information from the three vessels (Mr. Trash Wheel, Professor Trash Wheel, and Gwynnda) with a total of **`r nrow(trashwheel_df)` observations**. The resulting dataset has **`r nrow(trashwheel_df)` rows** and **`r ncol(trashwheel_df)` columns**. Each observation still represents a specific dumpster collection event. 
+
+Professor Trash Wheel collected a total of **`r professor_trashwheel_df |> summarise(sum(weight_tons, na.rm = TRUE))` tons of trash**. In June 2022, Gwynnda removed **`r gwynnda_trashwheel_df |> filter(month == "June", year =="2022") |> summarise(sum(cigarette_butts, na.rm = TRUE))` cigarette butts** from the water.
 
 
 ## Problem 3
 
+Import bakers dataset: 
+```{r}
+bakers_df = 
+  read_csv("gbb_datasets/bakers.csv", na = c("NA", ".", "")) |> 
+  janitor::clean_names() |>
+  na.omit(bakers_df) |>
+  separate(
+    baker_name, 
+    into = c("baker", "baker_last_name"), 
+    sep = " "
+  ) |> 
+  arrange(series)
+```
 
+Import bakes dataset: 
+```{r}
+bakes_df = 
+  read_csv("gbb_datasets/bakes.csv", na = c("NA", ".", "")) |> 
+  janitor::clean_names() |>
+  mutate(
+    baker = str_replace_all(baker, '"Jo"', "Jo")
+  )
+```
+
+Import results dataset: 
+```{r}
+results_df = 
+  read_csv("gbb_datasets/results.csv", 
+           na = c("NA", ".", ""), 
+           skip = 2) |>
+  janitor::clean_names() |>
+  arrange(series,baker) |>
+  mutate(
+   baker = ifelse(row_number() == 57:64, "Jo", baker)
+  )
+```
+
+View individual datasets using `anti_join`: 
+```{r message = FALSE}
+bakes_missing_df = anti_join(bakers_df, bakes_df)
+results_missing_df = anti_join(bakers_df, results_df)
+```
+
+Combine the three datasets to create a single dataset:
+```{r}
+gbb_df =
+  left_join(bakes_df, results_df, by = c("baker", "series", "episode")) 
+
+gbb_combined_df =
+  left_join(gbb_df, bakers_df, by = c("baker", "series")) |>
+  relocate(series, episode, baker, baker_last_name)
+
+write_csv(gbb_combined_df, "gbb_datasets/gbb_combined_df.csv")
+```
+
+### Data Cleaning Process/Questions:
+I loaded the data for the three datasets: Bakers Dataset, Bakes Dataset, and Results Dataset. 
+
+Starting with the Bakers Dataset, I read in the `bakers.csv` dataset using `read_csv()`, specifying the values to treat as `NA` (`"NA"`, `"."`, and `""`). The column names were cleaned with `janitor::clean_names()` for consistent/lowercase naming convention. Missing values were removed using `na.omit(bakers_df)`. The `baker_name` column was split into two columns, `baker` (first name) and `baker_last_name` (last name), using the separate() function. The data was sorted by the `series` column for proper ordering.
+
+The `bakes.csv` dataset was imported similarly to the bakers dataset, with the same approach to handling `NA` values. I used the `mutate()` function to replace any occurrences of `"Jo"` within quotes with `Jo` without quotes (to standardize name format).
+
+The `results.csv` dataset was read in, but with `skip = 2` to account for header rows, and the same NA handling was applied. The dataset was ordered by both `series` and `baker` for consistency. Joanne's name was replaced with `"Jo"` using `ifelse()` for consistency. 
+
+The `anti_join()` function was used to find missing data. `bakes_missing_df` was created by performing an anti-join between `bakers_df` and `bakes_df`, identifying bakers missing from the bakes dataset.`results_missing_df` was created similarly.
+
+I merged `bakes_df` and `results_df` on common columns `baker`, `series`, and `episode` using `left_join()`. The combined dataset (`gbb_df`) was joined with `bakers_df` on `baker` and `series`. The resulting dataset was reorganized using `relocate()` so that important variables (`series`, `episode`, `baker`, and `baker_last_name`) appeared at the beginning. The final combined dataset was saved as a CSV file using `write_csv()`. I used `na.omit()` to remove missing values. The final dataset, `gbb_combined_df`, contains all the information from the three original datasets (`bakes.csv`, `bakers.csv`, and `results.csv`), including details about bakers, their bakes, and competition results. 
+
+The final dataset combines information about bakers, their bakes, and competition results from the Great British Bake-Off. It includes key variables such as series, episode, baker names, and details about their signature, showstopper, and technical challenges, along with the bakers' personal details (age, occupation, hometown).The resulting dataset has **`r nrow(gbb_combined_df)` rows** and **`r ncol(gbb_combined_df)` columns**. Some values (technical ranking or showstopper descriptions) have missing data, indicated as "N/A."
+
+I noticed the joined dataset only includes data from up to series 8 (since the `bakes` dataset only contains information from series 1 through 8). 
+
+### Creating a Table:
+Create a table showing the star baker or winner of each episode in Seasons 5 through 10:
+```{r}
+winner_df =
+  results_df |> 
+  filter(series <= 10, series >=5) |> 
+  filter(result %in% c("WINNER", "STAR BAKER"))  |> 
+  select(series, episode, baker, result)
+
+winner_df |>
+  pivot_wider(
+    names_from = series,
+    values_from = baker
+  ) |> 
+  arrange(episode) |> 
+  knitr::kable()
+```
+The table showing the star bakers and winners during season 5 to season 10 suggests that there was some predictability in overall winners. For example, Candace, the winner of series 7, was the star baker the most number of times in comparison to the other bakers in the same series. Series 10 was the only series that consisted of a winner (David) that was not also a star baker at least once in their series. 
+
+### Viewership Data: 
+Import, clean, tidy and organize the viewership data: 
+```{r}
+viewers_df = 
+  read_csv("gbb_datasets/viewers.csv",
+           na = c("NA", ".", "")
+           ) |>
+  janitor::clean_names() |>
+  pivot_longer(
+    cols = series_1:series_10,
+    names_to = "series",
+    values_to = "viewership",
+    names_prefix = "series_"
+  ) |>
+  mutate(
+    series = as.numeric(series)
+  ) |>
+  arrange(series) |>
+  relocate (series)
+
+knitr::kable(head(viewers_df, 10), caption = "First 10 rows of GBB Viewers Dataset")
+```
+
+```{r}
+viewers1 = 
+  viewers_df |> 
+  filter(series == "1") |>
+  summarise(mean(viewership, na.rm = TRUE))
+
+viewers5 = 
+  viewers_df |> 
+  filter(series == "5") |>
+  summarise(mean(viewership, na.rm = TRUE))
+```
+
+The average viewership in Season 1 was **`r viewers1`**. The average viewership in Season 5 was **`r viewers5`**. 
